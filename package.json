@@ -1,0 +1,38 @@
+{
+  "name": "arlocal-utils",
+  "version": "1.0.0",
+  "description": "Helper functions for ArLocal",
+  "main": "dist/index.js",
+  "module": "dist/index.es.js",
+  "jsnext:main": "dist/index.es.js",
+  "types": "dist/index.d.ts",
+  "repository": "https://github.com/martonlederer/arlocal-utils",
+  "author": "Marton Lederer <marton@lederer.hu>",
+  "license": "MIT",
+  "private": false,
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "start": "rollup -c -w",
+    "fmt": "prettier --write .",
+    "fmt:check": "prettier --check ."
+  },
+  "gitHooks": {
+    "pre-commit": "prettier --write . && git add -A"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^21.0.0",
+    "arweave": "^1.10.17",
+    "prettier": "^2.4.1",
+    "rollup": "^2.58.0",
+    "rollup-plugin-typescript2": "^0.30.0",
+    "smartweave": "^0.4.45",
+    "typescript": "^4.4.3",
+    "yorkie": "^2.0.0"
+  }
+}
