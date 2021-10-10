@@ -46,12 +46,23 @@ export default class ArLocalUtils {
   /**
    * Copy a transaction from Arweave (with tags and data) to the ArLocal server
    *
-   * @param txID
+   * @param txID ID of the transaction to copy
    * @returns New transaction ID
    */
   async copyTransaction(txID: string): Promise<string> {
     await this.makeWallet();
-    return "";
+
+    const transaction = await this.arweave.transactions.get(txID);
+
+    await this.arweave.transactions.sign(transaction, this.wallet);
+
+    const uploader = await this.arweave.transactions.getUploader(transaction);
+
+    while (!uploader.isComplete) {
+      await uploader.uploadChunk();
+    }
+
+    return transaction.id;
   }
 
   /**
