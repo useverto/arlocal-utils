@@ -22,15 +22,16 @@ export default class ArLocalUtils {
   /**
    *
    * @param localClient Arweave client connected to ArLocal
+   * @param localWallet A local wallet generated on the same ArLocal server
    * @param arweaveClient Arweave client connected to a public ("mainnet") arweave gateway
    */
   constructor(
     localClient: Arweave,
-    arweaveWallet: JWKInterface,
+    localWallet: JWKInterface,
     arweaveClient?: Arweave
   ) {
     this.arlocal = localClient;
-    this.wallet = arweaveWallet;
+    this.wallet = localWallet;
     if (arweaveClient) this.arweave = arweaveClient;
 
     const { host, protocol } = this.arweave.getConfig().api;
