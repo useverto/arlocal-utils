@@ -2,6 +2,18 @@
 
 `arlocal-utils` is a small utility package that helps creating tests for [SmartWeave](https://github.com/ArweaveTeam/SmartWeave) contracts with [ArLocal](https://github.com/textury/arlocal). The library enables developers to easily copy transactions and contracts from any Arweave gateway to an ArLocal testing gateway.
 
+## Install
+
+```sh
+yarn add arlocal-utils
+```
+
+or
+
+```sh
+npm i arlocal-utils
+```
+
 ## Usage
 
 ```ts
