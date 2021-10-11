@@ -38,7 +38,8 @@ export default class ArLocalUtils {
     this.gatewayURL = protocol + "://" + host;
   }
 
-  // TODO: support copying contracts' current state
+  // TODO: support optionally copying contracts' current state
+  // TODO: support copying the tags of the contract initialization tx
 
   /**
    * Copy a contract from Arweave to the ArLocal server
