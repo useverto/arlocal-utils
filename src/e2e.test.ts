@@ -1,3 +1,4 @@
+import { JWKInterface } from "arweave/node/lib/wallet";
 import ArLocalUtils from "../dist";
 import ArLocal from "arlocal";
 import Arweave from "arweave";
@@ -5,6 +6,7 @@ import Arweave from "arweave";
 let arweave: Arweave;
 let arlocal: ArLocal;
 let arlocalUtils: ArLocalUtils;
+let wallet: JWKInterface;
 
 const port = 1987;
 
@@ -19,7 +21,10 @@ describe("e2e testing", () => {
       port,
       protocol: "http"
     });
-    arlocalUtils = new ArLocalUtils(arweave);
+    wallet = await arweave.wallets.generate();
+    await mine();
+
+    arlocalUtils = new ArLocalUtils(arweave, wallet);
   });
 
   afterAll(async () => {
@@ -32,12 +37,16 @@ describe("e2e testing", () => {
     );
     await mine();
 
-    expect(
-      (await arweave.transactions.get(id)).get("target", {
-        decode: true,
-        string: true
-      })
-    ).toEqual("ljvCPN31XCLPkBo9FUeB7vAK0VC6-eY52-CS-6Iho8U");
+    const copiedTx = await arweave.transactions.get(id);
+    // @ts-ignore
+    const appNameTag = copiedTx
+      .get("tags")
+      .find(
+        (tag) => tag.get("name", { decode: true, string: true }) === "App-Name"
+      )
+      .get("value", { decode: true, string: true });
+
+    expect(appNameTag).toEqual("ArConnect");
   });
 });
 

@@ -1,4 +1,5 @@
 import { JWKInterface } from "arweave/node/lib/wallet";
+import axios from "axios";
 import Arweave from "arweave";
 
 const defaultClient = new Arweave({
@@ -15,6 +16,7 @@ export default class ArLocalUtils {
 
   private psts: PSTContractsType;
   private wallet: JWKInterface;
+  private gatewayURL: string;
 
   /**
    *
@@ -23,12 +25,15 @@ export default class ArLocalUtils {
    */
   constructor(
     localClient: Arweave,
-    arweaveClient?: Arweave,
-    arweaveWallet?: JWKInterface
+    arweaveWallet: JWKInterface,
+    arweaveClient?: Arweave
   ) {
     this.arlocal = localClient;
+    this.wallet = arweaveWallet;
     if (arweaveClient) this.arweave = arweaveClient;
-    if (arweaveWallet) this.wallet = arweaveWallet;
+
+    const { host, protocol } = this.arweave.getConfig().api;
+    this.gatewayURL = protocol + "://" + host;
   }
 
   /**
@@ -39,7 +44,6 @@ export default class ArLocalUtils {
    * @returns New contract ID
    */
   async copyContract(contractID: string): Promise<string> {
-    await this.makeWallet();
     return "";
   }
 
@@ -50,13 +54,32 @@ export default class ArLocalUtils {
    * @returns New transaction ID
    */
   async copyTransaction(txID: string): Promise<string> {
-    await this.makeWallet();
+    let data = "SAMPLE_DATA";
+    const oldTx = await this.arweave.transactions.get(txID);
 
-    const transaction = await this.arweave.transactions.get(txID);
+    try {
+      data = (await axios.get(`${this.gatewayURL}/${txID}`, { timeout: 10000 }))
+        .data;
+    } catch {}
 
-    await this.arweave.transactions.sign(transaction, this.wallet);
+    const transaction = await this.arlocal.createTransaction(
+      {
+        data
+      },
+      this.wallet
+    );
 
-    const uploader = await this.arweave.transactions.getUploader(transaction);
+    // @ts-ignore
+    oldTx.get("tags").forEach((tag) => {
+      transaction.addTag(
+        tag.get("name", { decode: true, string: true }),
+        tag.get("value", { decode: true, string: true })
+      );
+    });
+
+    await this.arlocal.transactions.sign(transaction, this.wallet);
+
+    const uploader = await this.arlocal.transactions.getUploader(transaction);
 
     while (!uploader.isComplete) {
       await uploader.uploadChunk();
@@ -71,14 +94,8 @@ export default class ArLocalUtils {
    * @returns 4 PST contract IDs
    */
   async examplePSTs(): Promise<PSTContractsType> {
-    await this.makeWallet();
     if (this.psts) return this.psts;
 
     return ["", "", "", ""];
-  }
-
-  private async makeWallet() {
-    if (this.wallet) return;
-    this.wallet = await this.arweave.wallets.generate();
   }
 }
