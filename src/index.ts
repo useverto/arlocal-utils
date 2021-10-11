@@ -37,6 +37,8 @@ export default class ArLocalUtils {
     this.gatewayURL = protocol + "://" + host;
   }
 
+  // TODO: support copying contracts' current state
+
   /**
    * Copy a contract from Arweave to the ArLocal server
    *
@@ -45,6 +47,8 @@ export default class ArLocalUtils {
    * @returns New contract ID
    */
   async copyContract(contractID: string): Promise<string> {
+    this.validateHash(contractID);
+
     const contractTx = await this.arweave.transactions.get(contractID);
     // @ts-ignore
     const contractTags = contractTx.get("tags").map((tag) => ({
@@ -63,11 +67,14 @@ export default class ArLocalUtils {
         contractTags.find(({ name }) => name === "Contract-Src").value
       }`
     );
+
     const id = await createContract(
       this.arlocal,
       this.wallet,
       contractSource,
-      initState
+      typeof initState === "string"
+        ? initState
+        : JSON.stringify(initState, undefined, 2)
     );
 
     return id;
@@ -80,6 +87,8 @@ export default class ArLocalUtils {
    * @returns New transaction ID
    */
   async copyTransaction(txID: string): Promise<string> {
+    this.validateHash(txID);
+
     let data = "SAMPLE_DATA";
     const oldTx = await this.arweave.transactions.get(txID);
 
@@ -128,5 +137,10 @@ export default class ArLocalUtils {
       await this.copyContract("f6lW-sKxsc340p8eBBL2i_fnmSI_fRSFmkqvzqyUsRs"),
       await this.copyContract("mzvUgNc8YFk0w5K5H7c8pyT-FC5Y_ba0r7_8766Kx74")
     ];
+  }
+
+  private validateHash(hash: string) {
+    if (!/[a-z0-9_-]{43}/i.test(hash))
+      throw new Error("Invalid hash: not an Arweave format");
   }
 }

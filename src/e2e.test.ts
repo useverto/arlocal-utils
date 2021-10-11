@@ -1,4 +1,5 @@
 import { JWKInterface } from "arweave/node/lib/wallet";
+import { interactWrite, readContract } from "smartweave";
 import ArLocalUtils from "../dist";
 import ArLocal from "arlocal";
 import Arweave from "arweave";
@@ -9,6 +10,11 @@ let arlocalUtils: ArLocalUtils;
 let wallet: JWKInterface;
 
 const port = 1987;
+const COPY_CONTRACT_TEMPLATE = "8IlrRJR3ez3orz3UIchEpuupaXYXZMwCbMiid1u5Ryo";
+
+let copiedContractID = "";
+
+jest.setTimeout(60000);
 
 describe("e2e testing", () => {
   beforeAll(async () => {
@@ -50,11 +56,32 @@ describe("e2e testing", () => {
   });
 
   it("should copy contract", async () => {
-    const contractID = await arlocalUtils.copyContract(
-      "usjm4PCxUd5mtaon7zc97-dt-3qf67yPyqgzLnLqk5A"
-    );
+    copiedContractID = await arlocalUtils.copyContract(COPY_CONTRACT_TEMPLATE);
+    await mine();
 
-    console.log(contractID);
+    expect(copiedContractID).toMatch(/[a-z0-9_-]{43}/i);
+  });
+
+  it("should allow interactions with the copied contract", async () => {
+    await interactWrite(arweave, wallet, copiedContractID, {
+      function: "addOne"
+    });
+    await mine();
+
+    const state = await readContract(arweave, copiedContractID);
+
+    expect(state.test).toEqual(1);
+  });
+
+  it("should return example PST contracts", async () => {
+    const psts = await arlocalUtils.examplePSTs();
+    await mine();
+
+    expect(psts).toHaveLength(4);
+
+    for (const pst of psts) {
+      expect(pst).toMatch(/[a-z0-9_-]{43}/i);
+    }
   });
 });
 
