@@ -38,9 +38,9 @@ describe("e2e testing", () => {
     await mine();
 
     const copiedTx = await arweave.transactions.get(id);
-    // @ts-ignore
     const appNameTag = copiedTx
       .get("tags")
+      // @ts-ignore
       .find(
         (tag) => tag.get("name", { decode: true, string: true }) === "App-Name"
       )

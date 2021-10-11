@@ -96,6 +96,11 @@ export default class ArLocalUtils {
   async examplePSTs(): Promise<PSTContractsType> {
     if (this.psts) return this.psts;
 
-    return ["", "", "", ""];
+    return [
+      await this.copyContract("usjm4PCxUd5mtaon7zc97-dt-3qf67yPyqgzLnLqk5A"),
+      await this.copyContract("-8A6RexFkpfWwuyVO98wzSFZh0d6VJuI-buTJvlwOJQ"),
+      await this.copyContract("f6lW-sKxsc340p8eBBL2i_fnmSI_fRSFmkqvzqyUsRs"),
+      await this.copyContract("mzvUgNc8YFk0w5K5H7c8pyT-FC5Y_ba0r7_8766Kx74")
+    ];
   }
 }
