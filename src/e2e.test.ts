@@ -48,6 +48,14 @@ describe("e2e testing", () => {
 
     expect(appNameTag).toEqual("ArConnect");
   });
+
+  it("should copy contract", async () => {
+    const contractID = await arlocalUtils.copyContract(
+      "usjm4PCxUd5mtaon7zc97-dt-3qf67yPyqgzLnLqk5A"
+    );
+
+    console.log(contractID);
+  });
 });
 
 async function mine() {

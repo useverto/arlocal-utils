@@ -1,4 +1,5 @@
 import { JWKInterface } from "arweave/node/lib/wallet";
+import { createContract } from "smartweave";
 import axios from "axios";
 import Arweave from "arweave";
 
@@ -44,7 +45,32 @@ export default class ArLocalUtils {
    * @returns New contract ID
    */
   async copyContract(contractID: string): Promise<string> {
-    return "";
+    const contractTx = await this.arweave.transactions.get(contractID);
+    // @ts-ignore
+    const contractTags = contractTx.get("tags").map((tag) => ({
+      name: tag.get("name", { decode: true, string: true }),
+      value: tag.get("value", { decode: true, string: true })
+    }));
+    let initState = contractTags.find(
+      ({ name }) => name === "Init-State"
+    )?.value;
+
+    if (!initState)
+      initState = (await axios.get(`${this.gatewayURL}/${contractID}`)).data;
+
+    const { data: contractSource } = await axios.get(
+      `${this.gatewayURL}/${
+        contractTags.find(({ name }) => name === "Contract-Src").value
+      }`
+    );
+    const id = await createContract(
+      this.arlocal,
+      this.wallet,
+      contractSource,
+      initState
+    );
+
+    return id;
   }
 
   /**
