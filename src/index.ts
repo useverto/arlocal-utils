@@ -1,5 +1,6 @@
 import { JWKInterface } from "arweave/node/lib/wallet";
 import { createContract } from "smartweave";
+import Transaction from "arweave/node/lib/transaction";
 import axios from "axios";
 import Arweave from "arweave";
 
@@ -39,7 +40,6 @@ export default class ArLocalUtils {
   }
 
   // TODO: support optionally copying contracts' current state
-  // TODO: support copying the tags of the contract initialization tx
 
   /**
    * Copy a contract from Arweave to the ArLocal server
@@ -51,35 +51,67 @@ export default class ArLocalUtils {
   async copyContract(contractID: string): Promise<string> {
     this.validateHash(contractID);
 
+    // get contract init transaction data
     const contractTx = await this.arweave.transactions.get(contractID);
-    // @ts-ignore
-    const contractTags = contractTx.get("tags").map((tag) => ({
-      name: tag.get("name", { decode: true, string: true }),
-      value: tag.get("value", { decode: true, string: true })
-    }));
-    let initState = contractTags.find(
-      ({ name }) => name === "Init-State"
-    )?.value;
-
-    if (!initState)
-      initState = (await axios.get(`${this.gatewayURL}/${contractID}`)).data;
-
-    const { data: contractSource } = await axios.get(
-      `${this.gatewayURL}/${
-        contractTags.find(({ name }) => name === "Contract-Src").value
-      }`
+    const contractTxTags = this.mapTags(contractTx);
+    const { data: contractTxData } = await axios.get(
+      `${this.gatewayURL}/${contractID}`
     );
 
-    const id = await createContract(
-      this.arlocal,
-      this.wallet,
-      contractSource,
-      typeof initState === "string"
-        ? initState
-        : JSON.stringify(initState, undefined, 2)
+    // get contract source data
+    const contractSourceID = contractTxTags.find(
+      ({ name }) => name === "Contract-Src"
+    ).value;
+    const contractSourceTx = await this.arweave.transactions.get(
+      contractSourceID
+    );
+    const contractSourceTags = this.mapTags(contractSourceTx);
+    const { data: contractSourceData } = await axios.get(
+      `${this.gatewayURL}/${contractSourceID}`
     );
 
-    return id;
+    // copy the transactions
+    const newContractTx = await this.arlocal.createTransaction(
+      {
+        data: contractTxData
+      },
+      this.wallet
+    );
+    const newContractSourceTx = await this.arlocal.createTransaction(
+      {
+        data: contractSourceData
+      },
+      this.wallet
+    );
+
+    for (const tag of contractTxTags) {
+      newContractTx.addTag(tag.name, tag.value);
+    }
+
+    for (const tag of contractSourceTags) {
+      newContractSourceTx.addTag(tag.name, tag.value);
+    }
+
+    await this.arlocal.transactions.sign(newContractTx, this.wallet);
+    await this.arlocal.transactions.sign(newContractSourceTx, this.wallet);
+
+    const uploader1 = await this.arlocal.transactions.getUploader(
+      newContractTx
+    );
+
+    while (!uploader1.isComplete) {
+      await uploader1.uploadChunk();
+    }
+
+    const uploader2 = await this.arlocal.transactions.getUploader(
+      newContractSourceTx
+    );
+
+    while (!uploader2.isComplete) {
+      await uploader2.uploadChunk();
+    }
+
+    return newContractTx.id;
   }
 
   /**
@@ -144,5 +176,13 @@ export default class ArLocalUtils {
   private validateHash(hash: string) {
     if (!/[a-z0-9_-]{43}/i.test(hash))
       throw new Error("Invalid hash: not an Arweave format");
+  }
+
+  private mapTags(tx: Transaction): { name: string; value: string }[] {
+    // @ts-ignore
+    return tx.get("tags").map((tag) => ({
+      name: tag.get("name", { decode: true, string: true }),
+      value: tag.get("value", { decode: true, string: true })
+    }));
   }
 }
