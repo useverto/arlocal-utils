@@ -56,7 +56,10 @@ describe("e2e testing", () => {
   });
 
   it("should copy contract", async () => {
-    copiedContractID = await arlocalUtils.copyContract(COPY_CONTRACT_TEMPLATE);
+    copiedContractID = await arlocalUtils.copyContract(
+      COPY_CONTRACT_TEMPLATE,
+      true
+    );
     await mine();
 
     expect(copiedContractID).toMatch(/[a-z0-9_-]{43}/i);

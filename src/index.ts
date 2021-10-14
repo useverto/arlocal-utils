@@ -1,5 +1,5 @@
 import { JWKInterface } from "arweave/node/lib/wallet";
-import { createContract } from "smartweave";
+import { SmartWeaveNodeFactory } from "redstone-smartweave";
 import Transaction from "arweave/node/lib/transaction";
 import axios from "axios";
 import Arweave from "arweave";
@@ -39,16 +39,20 @@ export default class ArLocalUtils {
     this.gatewayURL = protocol + "://" + host;
   }
 
-  // TODO: support optionally copying contracts' current state
-
   /**
    * Copy a contract from Arweave to the ArLocal server
    *
    * @param contractID Arweave contract ID
+   * @param useLatestState Wether to use the default state of the contract or start with the current state
+   * @param stateModifier A callback to use to modify the contract's state before initializing it
    *
    * @returns New contract ID
    */
-  async copyContract(contractID: string): Promise<string> {
+  async copyContract(
+    contractID: string,
+    useLatestState: boolean = false,
+    stateModifier?: (state: any) => Promise<any> | any
+  ): Promise<string> {
     this.validateHash(contractID);
 
     // get contract init transaction data
@@ -70,10 +74,32 @@ export default class ArLocalUtils {
       `${this.gatewayURL}/${contractSourceID}`
     );
 
+    // latest state
+    let state: any = undefined;
+    const initStateTxID = contractTxTags.find(
+      ({ name }) => name.toLowerCase() === "init-state-tx"
+    )?.value;
+
+    if (useLatestState) {
+      // calculate latest state
+      const smartweave = SmartWeaveNodeFactory.memCached(this.arweave);
+      const contract = smartweave.contract(contractID);
+
+      state = (await contract.readState()).state;
+    } else if (!useLatestState && !!initStateTxID) {
+      // handle if the initial state is stored in a different tx
+      state = (await axios.get(`${this.gatewayURL}/${initStateTxID}`)).data;
+    }
+
+    // run state modifier
+    if (!!stateModifier) state = await stateModifier(state);
+
     // copy the transactions
     const newContractTx = await this.arlocal.createTransaction(
       {
-        data: contractTxData
+        data:
+          (typeof contractTxData === "string" && contractTxData) ||
+          JSON.stringify(contractTxData)
       },
       this.wallet
     );
@@ -84,7 +110,25 @@ export default class ArLocalUtils {
       this.wallet
     );
 
+    const stateInTags = !!contractTxTags.find(
+      ({ name }) => name.toLowerCase() === "init-state"
+    );
+
     for (const tag of contractTxTags) {
+      // overwrite init-state with the latest state, if the tag exits
+      if (tag.name.toLowerCase() === "init-state" && state && useLatestState) {
+        newContractTx.addTag(tag.name, JSON.stringify(state));
+        continue;
+      }
+
+      // if the contract uses a tx to initialize it's state, overwrite that
+      if (tag.name.toLowerCase() === "init-state-tx") {
+        if (!stateInTags)
+          newContractTx.addTag("Init-State", JSON.stringify(state));
+
+        continue;
+      }
+
       newContractTx.addTag(tag.name, tag.value);
     }
 
