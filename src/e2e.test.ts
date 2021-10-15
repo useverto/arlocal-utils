@@ -1,11 +1,12 @@
 import { JWKInterface } from "arweave/node/lib/wallet";
-import { interactWrite, readContract } from "smartweave";
+import { SmartWeave, SmartWeaveNodeFactory } from "redstone-smartweave";
 import ArLocalUtils from "../dist";
 import ArLocal from "arlocal";
 import Arweave from "arweave";
 
 let arweave: Arweave;
 let arlocal: ArLocal;
+let smartweave: SmartWeave;
 let arlocalUtils: ArLocalUtils;
 let wallet: JWKInterface;
 
@@ -30,6 +31,7 @@ describe("e2e testing", () => {
     wallet = await arweave.wallets.generate();
     await mine();
 
+    smartweave = SmartWeaveNodeFactory.memCached(arweave);
     arlocalUtils = new ArLocalUtils(arweave, wallet);
   });
 
@@ -66,12 +68,12 @@ describe("e2e testing", () => {
   });
 
   it("should allow interactions with the copied contract", async () => {
-    await interactWrite(arweave, wallet, copiedContractID, {
-      function: "addOne"
-    });
+    const contract = smartweave.contract(copiedContractID).connect(wallet);
+
+    await contract.writeInteraction({ function: "addOne" });
     await mine();
 
-    const state = await readContract(arweave, copiedContractID);
+    const { state } = (await contract.readState()) as any;
 
     expect(state.test).toEqual(1);
   });

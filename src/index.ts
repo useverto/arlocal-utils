@@ -110,9 +110,24 @@ export default class ArLocalUtils {
       this.wallet
     );
 
+    for (const tag of contractSourceTags) {
+      newContractSourceTx.addTag(tag.name, tag.value);
+    }
+
+    await this.arlocal.transactions.sign(newContractSourceTx, this.wallet);
+
+    const uploader2 = await this.arlocal.transactions.getUploader(
+      newContractSourceTx
+    );
+
+    while (!uploader2.isComplete) {
+      await uploader2.uploadChunk();
+    }
+
     const stateInTags = !!contractTxTags.find(
       ({ name }) => name.toLowerCase() === "init-state"
     );
+    let setSrc = false;
 
     for (const tag of contractTxTags) {
       // overwrite init-state with the latest state, if the tag exits
@@ -129,15 +144,18 @@ export default class ArLocalUtils {
         continue;
       }
 
+      if (tag.name.toLowerCase() === "contract-src") {
+        newContractTx.addTag(tag.name, newContractSourceTx.id);
+        setSrc = true;
+        continue;
+      }
+
       newContractTx.addTag(tag.name, tag.value);
     }
 
-    for (const tag of contractSourceTags) {
-      newContractSourceTx.addTag(tag.name, tag.value);
-    }
+    if (!setSrc) newContractTx.addTag("Contract-Src", newContractSourceTx.id);
 
     await this.arlocal.transactions.sign(newContractTx, this.wallet);
-    await this.arlocal.transactions.sign(newContractSourceTx, this.wallet);
 
     const uploader1 = await this.arlocal.transactions.getUploader(
       newContractTx
@@ -147,13 +165,8 @@ export default class ArLocalUtils {
       await uploader1.uploadChunk();
     }
 
-    const uploader2 = await this.arlocal.transactions.getUploader(
-      newContractSourceTx
-    );
-
-    while (!uploader2.isComplete) {
-      await uploader2.uploadChunk();
-    }
+    // mine txs
+    await this.mine();
 
     return newContractTx.id;
   }
@@ -198,6 +211,9 @@ export default class ArLocalUtils {
       await uploader.uploadChunk();
     }
 
+    // mine tx
+    await this.mine();
+
     return transaction.id;
   }
 
@@ -228,5 +244,9 @@ export default class ArLocalUtils {
       name: tag.get("name", { decode: true, string: true }),
       value: tag.get("value", { decode: true, string: true })
     }));
+  }
+
+  private async mine() {
+    await this.arlocal.api.get("mine");
   }
 }
