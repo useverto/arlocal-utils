@@ -75,7 +75,7 @@ export default class ArLocalUtils {
     );
 
     // latest state
-    let state: any = undefined;
+    let state: any = contractTxData;
     const initStateTxID = contractTxTags.find(
       ({ name }) => name.toLowerCase() === "init-state-tx"
     )?.value;
